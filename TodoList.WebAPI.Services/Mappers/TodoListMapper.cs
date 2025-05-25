@@ -42,7 +42,6 @@ namespace TodoList.WebAPI.Services.Mappers
             Description = dto.Description,
             CreatedAt = dto.CreatedAt,
             UpdatedAt = dto.UpdatedAt,
-            OwnerId = dto.OwnerId,
         };
 
         public static TodoListDto ToDto(Models.TodoList model) =>
@@ -53,7 +52,6 @@ namespace TodoList.WebAPI.Services.Mappers
                 Description = model.Description,
                 CreatedAt = model.CreatedAt,
                 UpdatedAt = model.UpdatedAt,
-                OwnerId = model.OwnerId,
             };
 
     }

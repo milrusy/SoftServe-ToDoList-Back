@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using TodoList.WebAPI.Models.DTOs;
 using TodoList.WebAPI.Services.Interfaces;
 using TodoList.WebAPI.Services.Mappers;
@@ -10,10 +11,12 @@ namespace TodoList.WebAPI.Controllers
     public class TaskItemController : ControllerBase
     {
         private readonly ITaskItemDatabaseService service;
+        private readonly Services.Interfaces.IAuthorizationService authorizationService;
 
-        public TaskItemController(ITaskItemDatabaseService service)
+        public TaskItemController(ITaskItemDatabaseService service, Services.Interfaces.IAuthorizationService authorizationService)
         {
             this.service = service;
+            this.authorizationService = authorizationService;
         }
 
         [HttpGet]
@@ -24,7 +27,9 @@ namespace TodoList.WebAPI.Controllers
                 return this.BadRequest("Missing todoListId query parameter.");
             }
 
-            var taskItems = await this.service.GetAllByTodoListIdAsync((int)todoListId);
+            var userId = this.authorizationService.GetUserId();
+
+            var taskItems = await this.service.GetAllByTodoListIdAsync(userId, (int)todoListId);
             if (taskItems == null)
             {
                 return this.NotFound();
@@ -38,7 +43,8 @@ namespace TodoList.WebAPI.Controllers
         [HttpGet("{taskItemId:int}")]
         public async Task<IActionResult> GetByIdAsync(int taskItemId)
         {
-            var taskItem = await this.service.GetByIdAsync(taskItemId);
+            var userId = this.authorizationService.GetUserId();
+            var taskItem = await this.service.GetByIdAsync(userId, taskItemId);
             if (taskItem == null)
             {
                 return this.NotFound();
@@ -50,24 +56,27 @@ namespace TodoList.WebAPI.Controllers
         [HttpPost]
         public async Task<IActionResult> CreateAsync([FromQuery] int todoListId, [FromBody] TaskItemDto taskItemDto)
         {
+            var userId = this.authorizationService.GetUserId();
+            Console.WriteLine("Creating task item for user: " + userId + " in todo list: " + todoListId);
             if (taskItemDto == null)
             {
                 return this.BadRequest();
             }
 
-            var createdTaskItem = await this.service.CreateAsync(todoListId, TaskItemMapper.ToModel(taskItemDto));
+            var createdTaskItem = await this.service.CreateAsync(userId, todoListId, TaskItemMapper.ToModel(taskItemDto));
             return this.Ok(TaskItemMapper.ToDto(createdTaskItem));
         }
 
         [HttpPut("{taskItemId:int}")]
         public async Task<IActionResult> UpdateAsync(int taskItemId, [FromBody] TaskItemDto taskItemDto)
         {
+            var userId = this.authorizationService.GetUserId();
             if (taskItemDto == null)
             {
                 return this.BadRequest();
             }
 
-            var updatedTaskItem = await this.service.UpdateAsync(taskItemId, TaskItemMapper.ToModel(taskItemDto));
+            var updatedTaskItem = await this.service.UpdateAsync(userId, taskItemId, TaskItemMapper.ToModel(taskItemDto));
             if (updatedTaskItem == null)
             {
                 return this.NotFound();
@@ -79,7 +88,8 @@ namespace TodoList.WebAPI.Controllers
         [HttpDelete("{taskItemId:int}")]
         public async Task<IActionResult> DeleteAsync(int taskItemId)
         {
-            var isDeleted = await this.service.DeleteAsync(taskItemId);
+            var userId = this.authorizationService.GetUserId();
+            var isDeleted = await this.service.DeleteAsync(userId, taskItemId);
             if (!isDeleted)
             {
                 return this.NotFound();
@@ -94,7 +104,8 @@ namespace TodoList.WebAPI.Controllers
         [FromQuery] DateTime? createdAt,
         [FromQuery] DateTime? dueDate)
         {
-            var results = await this.service.SearchAsync(title, createdAt, dueDate);
+            var userId = this.authorizationService.GetUserId();
+            var results = await this.service.SearchAsync(userId, title, createdAt, dueDate);
             var resultDtos = results.Select(TaskItemMapper.ToDto).ToList();
 
             return this.Ok(resultDtos);

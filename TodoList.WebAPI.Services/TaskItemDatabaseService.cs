@@ -14,9 +14,17 @@ namespace TodoList.WebAPI.Services
         {
             this.context = context;
         }
-        public async Task<TaskItem> GetByIdAsync(int taskItemId)
+
+        public async Task<TaskItem> GetByIdAsync(int userId, int taskItemId)
         {
             var taskItem = await this.context.TaskItems.FirstOrDefaultAsync(t => t.Id == taskItemId);
+            var todoList = await this.context.TodoLists
+                .FirstOrDefaultAsync(t => t.Id == taskItem.TodoListId);
+            if (todoList == null || todoList.OwnerId != userId)
+            {
+                throw new ArgumentException("Task item not found or does not belong to the user.", nameof(taskItemId));
+            }
+
             if (taskItem == null)
             {
                 return null;
@@ -25,25 +33,45 @@ namespace TodoList.WebAPI.Services
             return TaskItemMapper.ToModel(taskItem);
         }
 
-        public async Task<IEnumerable<TaskItem>> GetAllByTodoListIdAsync(int todoListId)
+        public async Task<IEnumerable<TaskItem>> GetAllByTodoListIdAsync(int userId, int todoListId)
         {
+            var todoList = await this.context.TodoLists
+                .FirstOrDefaultAsync(t => t.Id == todoListId && t.OwnerId == userId);
+            if (todoList == null)
+            {
+                throw new ArgumentException("Todo list not found or does not belong to the user.", nameof(todoListId));
+            }
+
             var taskItems = await this.context.TaskItems
-                .Where(t => t.TodoListId == todoListId)
-                .ToListAsync();
+            .Where(t => t.TodoListId == todoListId)
+            .ToListAsync();
 
             return taskItems.Select(t => TaskItemMapper.ToModel(t));
         }
 
-        public async Task<TaskItem> CreateAsync(int todoListId, TaskItem taskItem)
+        public async Task<TaskItem> CreateAsync(int userId, int todoListId, TaskItem taskItem)
         {
+            var todoList = await this.context.TodoLists
+                .FirstOrDefaultAsync(t => t.Id == todoListId && t.OwnerId == userId);
+            if (todoList == null)
+            {
+                throw new ArgumentException("Todo list not found or does not belong to the user.", nameof(todoListId));
+            }
             taskItem.CreatedAt = DateTime.UtcNow;
             taskItem.TodoListId = todoListId;
             var entity = this.context.TaskItems.Add(TaskItemMapper.ToEntity(taskItem));
             _ = await this.context.SaveChangesAsync();
             return TaskItemMapper.ToModel(entity.Entity);
         }
-        public async Task<TaskItem> UpdateAsync(int taskItemId, TaskItem taskItem)
+
+        public async Task<TaskItem> UpdateAsync(int userId, int taskItemId, TaskItem taskItem)
         {
+            var todoList = await this.context.TodoLists
+                .FirstOrDefaultAsync(t => t.Id == taskItem.TodoListId && t.OwnerId == userId);
+            if (todoList == null)
+            {
+                throw new ArgumentException("Todo list not found or does not belong to the user.");
+            }
             var entity = await this.context.TaskItems.FindAsync(taskItemId);
             if (entity == null)
             {
@@ -60,8 +88,16 @@ namespace TodoList.WebAPI.Services
             _ = await this.context.SaveChangesAsync();
             return TaskItemMapper.ToModel(entity);
         }
-        public async Task<bool> DeleteAsync(int taskItemId)
+
+        public async Task<bool> DeleteAsync(int userId, int taskItemId)
         {
+            var todoList = await this.context.TodoLists
+                .FirstOrDefaultAsync(t => t.Id == taskItemId && t.OwnerId == userId);
+            if (todoList == null)
+            {
+                throw new ArgumentException("Todo list not found or does not belong to the user.", nameof(taskItemId));
+            }
+
             var entity = await this.context.TaskItems.FindAsync(taskItemId);
             if (entity == null)
             {
@@ -73,9 +109,14 @@ namespace TodoList.WebAPI.Services
             return true;
         }
 
-        public async Task<IEnumerable<TaskItem>> SearchAsync(string title = null, DateTime? createdAt = null, DateTime? dueDate = null)
+        public async Task<IEnumerable<TaskItem>> SearchAsync(int userId, string title = null, DateTime? createdAt = null, DateTime? dueDate = null)
         {
-            var query = this.context.TaskItems.AsQueryable();
+            var todoLists = await this.context.TodoLists
+                .Where(t => t.OwnerId == userId)
+                .Select(t => t.Id)
+                .ToListAsync();
+
+            var query = this.context.TaskItems.Where(t => todoLists.Contains(t.TodoListId)).AsQueryable();
 
             if (!string.IsNullOrEmpty(title))
             {
@@ -98,7 +139,12 @@ namespace TodoList.WebAPI.Services
 
         public async Task<bool> ChangeTaskStatusAsync(int userId, int taskId, string status)
         {
-            var tasks = this.context.TaskItems.AsQueryable();
+            var todoLists = await this.context.TodoLists
+                .Where(t => t.OwnerId == userId)
+                .Select(t => t.Id)
+                .ToListAsync();
+
+            var tasks = this.context.TaskItems.Where(t => todoLists.Contains(t.TodoListId)).AsQueryable();
 
             var task = await tasks.FirstOrDefaultAsync(t => t.Id == taskId);
 

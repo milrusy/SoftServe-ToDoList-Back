@@ -14,10 +14,10 @@ namespace TodoList.WebAPI.Services
             this.context = context;
         }
 
-        public async Task<Models.TodoList> GetByIdAsync(int id)
+        public async Task<Models.TodoList> GetByIdAsync(int userId, int id)
         {
             var todoList = await this.context.TodoLists.FirstOrDefaultAsync(t => t.Id == id);
-            if (todoList == null)
+            if (todoList == null || todoList.OwnerId != userId)
             {
                 return null;
             }
@@ -25,22 +25,29 @@ namespace TodoList.WebAPI.Services
             return TodoListMapper.ToModel(todoList);
         }
 
-        public async Task<IEnumerable<Models.TodoList>> GetAllAsync()
+        public async Task<IEnumerable<Models.TodoList>> GetAllAsync(int userId)
         {
-            var todoLists = await this.context.TodoLists.ToListAsync();
+            var todoLists = await this.context.TodoLists.Where(td => td.OwnerId == userId).ToListAsync();
             return todoLists.Select(t => TodoListMapper.ToModel(t));
         }
 
-        public async Task<Models.TodoList> CreateAsync(Models.TodoList todoList)
+        public async Task<Models.TodoList> CreateAsync(int userId, Models.TodoList todoList)
         {
+            if (todoList == null)
+            {
+                throw new ArgumentNullException(nameof(todoList));
+            }
+
             todoList.CreatedAt = DateTime.UtcNow;
             todoList.UpdatedAt = DateTime.UtcNow;
+            todoList.OwnerId = userId;
+
             var entity = this.context.TodoLists.Add(TodoListMapper.ToEntity(todoList));
             _ = await this.context.SaveChangesAsync();
             return TodoListMapper.ToModel(entity.Entity);
         }
 
-        public async Task<Models.TodoList> UpdateAsync(int id, Models.TodoList todoList)
+        public async Task<Models.TodoList> UpdateAsync(int userId, int id, Models.TodoList todoList)
         {
             var entity = await this.context.TodoLists.FindAsync(id);
             if (entity == null)
@@ -56,7 +63,7 @@ namespace TodoList.WebAPI.Services
             return TodoListMapper.ToModel(entity);
         }
 
-        public async Task<bool> DeleteAsync(int id)
+        public async Task<bool> DeleteAsync(int userId, int id)
         {
             var entity = await this.context.TodoLists.FindAsync(id);
             if (entity == null)

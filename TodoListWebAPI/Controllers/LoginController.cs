@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using TodoList.WebAPI.Models.DTOs;
 using TodoList.WebAPI.Services;
 using TodoList.WebAPI.Services.Interfaces;
+using TodoList.WebAPI.Services.Mappers;
 
 namespace TodoList.WebAPI.Controllers
 {
@@ -15,10 +16,12 @@ namespace TodoList.WebAPI.Controllers
     public class LoginController : ControllerBase
     {
         private readonly IUserService userService;
+        private readonly IAuthorizationService authorizationService;
 
-        public LoginController(IUserService userService)
+        public LoginController(IUserService userService, IAuthorizationService authorizationService)
         {
             this.userService = userService;
+            this.authorizationService = authorizationService;
         }
 
         [HttpPost("register")]
@@ -32,27 +35,12 @@ namespace TodoList.WebAPI.Controllers
         public async Task<IActionResult> Login([FromBody] LoginDto request)
         {
             var user = await userService.AuthenticateAsync(request.Username, request.Password);
+            Console.WriteLine("User: " + user?.Username + " " + user?.Id);
             if (user != null)
             {
-                var claims = new[]
-                {
-                    new Claim(ClaimTypes.Name, request.Username)
-                };
-
-                var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes("SuperStrongSecretKeyAtLeast32Char!!SuperStrongSecretKeyAtLeast32Char!!SuperStrongSecretKeyAtLeast32Char!!SuperStrongSecretKeyAtLeast32Char!!SuperStrongSecretKeyAtLeast32Char!!SuperStrongSecretKeyAtLeast32Char!!SuperStrongSecretKeyAtLeast32Char!!SuperStrongSecretKeyAtLeast32Char!!"));
-                var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-
-                var token = new JwtSecurityToken(
-                    issuer: "todolist.webapi",
-                    audience: "todolist.webapi",
-                    claims: claims,
-                    expires: DateTime.UtcNow.AddHours(2),
-                    signingCredentials: creds
-                );
-
                 return Ok(new
                 {
-                    token = new JwtSecurityTokenHandler().WriteToken(token)
+                    token = new JwtSecurityTokenHandler().WriteToken(authorizationService.CreateToken(user))
                 });
             }
             return Unauthorized();
