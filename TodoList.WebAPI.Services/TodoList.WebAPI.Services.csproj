@@ -7,6 +7,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Identity" Version="2.3.1" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\TodoList.WebAPI.Models\TodoList.WebAPI.Models.csproj" />
     <ProjectReference Include="..\TodoList.WebAPI.Services.Database\TodoList.WebAPI.Services.Database.csproj" />
   </ItemGroup>
