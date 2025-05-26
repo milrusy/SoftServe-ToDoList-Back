@@ -1,13 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
-using System.Text;
-using System.Threading.Tasks;
 using TodoList.WebAPI.Models.DTOs;
-using TodoList.WebAPI.Services;
 using TodoList.WebAPI.Services.Interfaces;
-using TodoList.WebAPI.Services.Mappers;
 
 namespace TodoList.WebAPI.Controllers
 {
@@ -27,20 +21,27 @@ namespace TodoList.WebAPI.Controllers
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegisterDto dto)
         {
-            await userService.RegisterAsync(dto.Username, dto.Email, dto.Password);
-            return Ok();
+            var user = await userService.RegisterAsync(dto.Username, dto.Email, dto.Password);
+            if (user == null)
+            {
+                return BadRequest("User registration failed. Username may already exist.");
+            }
+
+            return Ok(new AuthResponseDto
+            {
+                Token = new JwtSecurityTokenHandler().WriteToken(authorizationService.CreateToken(user))
+            });
         }
 
         [HttpPost]
         public async Task<IActionResult> Login([FromBody] LoginDto request)
         {
             var user = await userService.AuthenticateAsync(request.Username, request.Password);
-            Console.WriteLine("User: " + user?.Username + " " + user?.Id);
             if (user != null)
             {
-                return Ok(new
+                return Ok(new AuthResponseDto
                 {
-                    token = new JwtSecurityTokenHandler().WriteToken(authorizationService.CreateToken(user))
+                    Token = new JwtSecurityTokenHandler().WriteToken(authorizationService.CreateToken(user))
                 });
             }
             return Unauthorized();

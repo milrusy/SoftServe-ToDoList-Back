@@ -57,7 +57,6 @@ namespace TodoList.WebAPI.Controllers
         public async Task<IActionResult> CreateAsync([FromQuery] int todoListId, [FromBody] TaskItemDto taskItemDto)
         {
             var userId = this.authorizationService.GetUserId();
-            Console.WriteLine("Creating task item for user: " + userId + " in todo list: " + todoListId);
             if (taskItemDto == null)
             {
                 return this.BadRequest();
@@ -96,19 +95,6 @@ namespace TodoList.WebAPI.Controllers
             }
 
             return this.NoContent();
-        }
-
-        [HttpGet("search")]
-        public async Task<IActionResult> SearchAsync(
-        [FromQuery] string? title,
-        [FromQuery] DateTime? createdAt,
-        [FromQuery] DateTime? dueDate)
-        {
-            var userId = this.authorizationService.GetUserId();
-            var results = await this.service.SearchAsync(userId, title, createdAt, dueDate);
-            var resultDtos = results.Select(TaskItemMapper.ToDto).ToList();
-
-            return this.Ok(resultDtos);
         }
     }
 }

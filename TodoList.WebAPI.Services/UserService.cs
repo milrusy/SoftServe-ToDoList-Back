@@ -19,23 +19,33 @@ namespace TodoList.WebAPI.Services
             this.passwordHasher = new PasswordHasher<UserEntity>();
         }
 
-        public async Task RegisterAsync(string username, string email, string password)
+        public async Task<User?> RegisterAsync(string username, string email, string password)
         {
             if (await this.context.Users.AnyAsync(u => u.Username == username))
-                throw new InvalidOperationException("Username already exists");
+            {
+                return null;
+            }
+
+            if (await this.context.Users.AnyAsync(u => u.Email == email))
+            {
+                return null;
+            }
 
             var user = new UserEntity { Username = username, Email = email };
             user.PasswordHash = this.passwordHasher.HashPassword(user, password);
 
             this.context.Users.Add(user);
             await context.SaveChangesAsync();
+            return UserMapper.ToModel(user);
         }
 
         public async Task<User?> AuthenticateAsync(string username, string password)
         {
             var user = await this.context.Users.SingleOrDefaultAsync(u => u.Username == username);
             if (user == null)
+            {
                 return null;
+            }
 
             var result = this.passwordHasher.VerifyHashedPassword(user, user.PasswordHash, password);
             return result == PasswordVerificationResult.Success ? UserMapper.ToModel(user) : null;

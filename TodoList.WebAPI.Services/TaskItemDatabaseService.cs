@@ -91,9 +91,16 @@ namespace TodoList.WebAPI.Services
 
         public async Task<bool> DeleteAsync(int userId, int taskItemId)
         {
-            var todoList = await this.context.TodoLists
-                .FirstOrDefaultAsync(t => t.Id == taskItemId && t.OwnerId == userId);
-            if (todoList == null)
+            var todoLists = await this.context.TodoLists
+                .Where(t => t.OwnerId == userId)
+                .Select(t => t.Id)
+                .ToListAsync();
+
+            var tasks = this.context.TaskItems.Where(t => todoLists.Contains(t.TodoListId)).AsQueryable();
+
+            var task = await tasks.FirstOrDefaultAsync(t => t.Id == taskItemId);
+
+            if (task == null)
             {
                 throw new ArgumentException("Todo list not found or does not belong to the user.", nameof(taskItemId));
             }
@@ -107,34 +114,6 @@ namespace TodoList.WebAPI.Services
             _ = this.context.TaskItems.Remove(entity);
             _ = await this.context.SaveChangesAsync();
             return true;
-        }
-
-        public async Task<IEnumerable<TaskItem>> SearchAsync(int userId, string title = null, DateTime? createdAt = null, DateTime? dueDate = null)
-        {
-            var todoLists = await this.context.TodoLists
-                .Where(t => t.OwnerId == userId)
-                .Select(t => t.Id)
-                .ToListAsync();
-
-            var query = this.context.TaskItems.Where(t => todoLists.Contains(t.TodoListId)).AsQueryable();
-
-            if (!string.IsNullOrEmpty(title))
-            {
-                query = query.Where(t => t.Title.Contains(title));
-            }
-
-            if (createdAt.HasValue)
-            {
-                query = query.Where(t => t.CreatedAt.Date == createdAt.Value.Date);
-            }
-
-            if (dueDate.HasValue)
-            {
-                query = query.Where(t => t.DueDate.HasValue && t.DueDate.Value.Date == dueDate.Value.Date);
-            }
-
-            var results = await query.ToListAsync();
-            return results.Select(TaskItemMapper.ToModel);
         }
 
         public async Task<bool> ChangeTaskStatusAsync(int userId, int taskId, string status)

@@ -4,7 +4,7 @@ namespace TodoList.WebAPI.Services.Interfaces
 {
     public interface IUserService
     {
-        Task RegisterAsync(string username, string email, string password);
+        Task<User?> RegisterAsync(string username, string email, string password);
         Task<User?> AuthenticateAsync(string username, string password);
     }
 }

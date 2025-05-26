@@ -9,7 +9,6 @@ namespace TodoList.WebAPI.Services.Interfaces
         Task<TaskItem> CreateAsync(int userId, int todoListId, TaskItem taskItem);
         Task<TaskItem> UpdateAsync(int userId, int taskItemId, TaskItem taskItem);
         Task<bool> DeleteAsync(int userId, int taskItemId);
-        Task<IEnumerable<TaskItem>> SearchAsync(int userId, string title = null, DateTime? createdAt = null, DateTime? dueDate = null);
         Task<bool> ChangeTaskStatusAsync(int userId, int taskId, string status);
     }
 
